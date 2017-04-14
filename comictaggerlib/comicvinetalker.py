@@ -59,6 +59,7 @@ from issuestring import IssueString
 class CVTypeID:
     Volume = "4050"
     Issue = "4000"
+    Publisher = "4010"
 
 
 class ComicVineTalkerException(Exception):
@@ -289,6 +290,63 @@ class ComicVineTalker(QObject):
 
         return search_results
 
+    def searchForPublisher(self, publisher_name, callback=None, refresh_cache=False):
+
+        # before we search online, look in our cache, since we might have
+        # done this same search recently
+
+        cvc = ComicVineCacher()
+        if not refresh_cache:
+            cached_search_results = cvc.get_publisher_info(publisher_name)
+
+        if len(cached_search_results) > 0:
+            query_string = urllib.quote_plus(publisher_name.encode("utf-8"))
+
+        search_url = self.api_base_url + "/publishers/?api_key=" + self.api_key + "&format=json&filter=name:" + \
+            query_string + \
+            "&field_list=name,id,site_detail_url"
+        cv_response = self.getCVContent(search_url + "&page=1")
+
+        search_results = list()
+
+        # see http://api.comicvine.com/documentation/#handling_responses
+
+        limit = cv_response['limit']
+        current_result_count = cv_response['number_of_page_results']
+        total_result_count = cv_response['number_of_total_results']
+
+        if callback is None:
+            self.writeLog(
+                "Found {0} of {1} results\n".format(
+                    cv_response['number_of_page_results'],
+                    cv_response['number_of_total_results']))
+        search_results.extend(cv_response['results'])
+        page = 1
+
+        if callback is not None:
+            callback(current_result_count, total_result_count)
+
+        # see if we need to keep asking for more pages...
+        while (current_result_count < total_result_count):
+            if callback is None:
+                self.writeLog(
+                    "getting another page of results {0} of {1}...\n".format(
+                        current_result_count,
+                        total_result_count))
+            page += 1
+
+            cv_response = self.getCVContent(search_url + "&page=" + str(page))
+
+            search_results.extend(cv_response['results'])
+            current_result_count += cv_response['number_of_page_results']
+
+            if callback is not None:
+                callback(current_result_count, total_result_count)
+
+        # cache these search results
+        cvc.add_publisher_info(search_results)
+
+        return search_results
     def fetchVolumeData(self, series_id):
 
         # before we search online, look in our cache, since we might already
@@ -301,7 +359,7 @@ class ComicVineTalker(QObject):
 
         volume_url = self.api_base_url + "/volume/" + CVTypeID.Volume + "-" + \
             str(series_id) + "/?api_key=" + self.api_key + \
-            "&field_list=name,id,start_year,publisher,count_of_issues&format=json"
+            "&field_list=name,id,image,description,site_detail_url,count_of_issues,publisher,start_year&format=json"
 
         cv_response = self.getCVContent(volume_url)
 
@@ -451,6 +509,18 @@ class ComicVineTalker(QObject):
         md = self.mapCVDataToMetadata(volume_results, issue_results, settings)
         md.isEmpty = False
         return md
+
+    def fetchPublisherDataByPublisherID(self, publisher_id):
+
+        publisher_url = self.api_base_url + "/publisher/" + CVTypeID.Publisher + "-" + \
+            str(publisher_id) + "/?api_key=" + self.api_key + "&format=json" + \
+            "&field_list=name,id,image,description,site_detail_url"
+        print publisher_url
+        cv_response = self.getCVContent(publisher_url)
+
+        publisher_results = cv_response['results']
+
+        return publisher_results
 
     def mapCVDataToMetadata(self, volume_results, issue_results, settings):
 
@@ -802,3 +872,4 @@ class ComicVineTalker(QObject):
                 issue['image'] = dict()
                 issue['image']['super_url'] = ComicVineTalker.logo_url
                 issue['image']['thumb_url'] = ComicVineTalker.logo_url
+

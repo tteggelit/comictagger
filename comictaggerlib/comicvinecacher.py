@@ -96,6 +96,8 @@ class ComicVineCacher:
                 "publisher TEXT," +
                 "count_of_issues INT," +
                 "start_year INT," +
+                "description TEXT," +
+                "site_detail_url TEXT," +
                 "timestamp DATE DEFAULT (datetime('now','localtime')), " +
                 "PRIMARY KEY (id))")
 
@@ -117,6 +119,14 @@ class ComicVineCacher:
                 "cover_date TEXT," +
                 "site_detail_url TEXT," +
                 "description TEXT," +
+                "timestamp DATE DEFAULT (datetime('now','localtime')), " +
+                "PRIMARY KEY (id))")
+
+            cur.execute(
+                "CREATE TABLE Publishers(" +
+                "id INT," +
+                "name TEXT," +
+                "site_detail_url TEXT," +
                 "timestamp DATE DEFAULT (datetime('now','localtime')), " +
                 "PRIMARY KEY (id))")
 
@@ -266,6 +276,8 @@ class ComicVineCacher:
                 "publisher": pub_name,
                 "count_of_issues": cv_volume_record['count_of_issues'],
                 "start_year": cv_volume_record['start_year'],
+                "description": cv_volume_record['description'],
+                "site_detail_url": cv_volume_record['site_detail_url'],
                 "timestamp": timestamp
             }
             self.upsert(cur, "volumes", "id", cv_volume_record['id'], data)
@@ -313,7 +325,7 @@ class ComicVineCacher:
 
             # fetch
             cur.execute(
-                "SELECT id,name,publisher,count_of_issues,start_year FROM Volumes WHERE id = ?",
+                "SELECT id,name,publisher,count_of_issues,start_year,description,site_detail_url FROM Volumes WHERE id = ?",
                 [volume_id])
 
             row = cur.fetchone()
@@ -330,6 +342,8 @@ class ComicVineCacher:
             result['publisher']['name'] = row[2]
             result['count_of_issues'] = row[3]
             result['start_year'] = row[4]
+            result['description'] = row[5]
+            result['site_detail_url'] = row[6]
             result['issues'] = list()
 
         return result
@@ -428,6 +442,57 @@ class ComicVineCacher:
                 details['site_detail_url'] = row[3]
 
             return details
+
+    def add_publisher_info(self, cv_publisher_record):
+
+        con = lite.connect(self.db_file)
+
+        with con:
+
+            cur = con.cursor()
+
+            timestamp = datetime.datetime.now()
+
+            data = {
+                "name": cv_publisher_record['name'],
+                "description": cv_publisher_record['description'],
+                "site_detail_url": cv_publisher_record['site_detail_url'],
+                "timestamp": timestamp
+            }
+            #self.upsert(cur, "publishers", "id", cv_publisher_record['id'], data)
+
+    def get_publisher_info(self, publisher_id):
+
+        result = None
+
+        con = lite.connect(self.db_file)
+        with con:
+            cur = con.cursor()
+            con.text_factory = unicode
+
+            # purge stale volume info
+            a_week_ago = datetime.datetime.today() - datetime.timedelta(days=7)
+            cur.execute(
+                "DELETE FROM Publishers WHERE timestamp  < ?", [str(a_week_ago)])
+
+            # fetch
+            cur.execute(
+                "SELECT id,name,site_detail_url FROM Publishers WHERE id = ?",
+                [publisher_id])
+
+            row = cur.fetchone()
+
+            if row is None:
+                return result
+
+            result = dict()
+
+            # since ID is primary key, there is only one row
+            result['id'] = row[0]
+            result['name'] = row[1]
+            result['site_detail_url'] = row[2]
+
+        return result
 
     def upsert(self, cur, tablename, pkname, pkval, data):
         """

@@ -106,6 +106,29 @@ class ZipArchiver:
     def __init__( self, path ):
         self.path = path
 
+    def extractArchivePages( self, pages, base_path=None ):
+        if base_path is None:
+            tmp_folder = tempfile.mkdtemp( dir="cache" )
+        else:
+            tmp_folder = base_path
+
+        try:
+            zf = zipfile.ZipFile( self.path, 'r' )
+            zf.extractall( tmp_folder, pages )
+        except zipfile.BadZipfile as e:
+            print >> sys.stderr, u"bad zipfile [{0}]: {1}".format(e, self.path)
+            zf.close()
+            raise IOError
+        except Exception as e:
+            zf.close()
+            print >> sys.stderr, u"bad zipfile [{0}]: {1}".format(e, self.path)
+            raise IOError
+        finally:
+            zf.close()
+            return tmp_folder
+
+        return tmp_folder
+
     def getArchiveComment( self ):
         zf = zipfile.ZipFile( self.path, 'r' )
         comment = zf.comment
@@ -628,8 +651,7 @@ class ComicArchive:
                 self.archive_type = self.ArchiveType.Pdf
                 self.archiver = PdfArchiver(self.path)
 
-        if ComicArchive.logo_data is None:
-            #fname = ComicTaggerSettings.getGraphic('nocover.png')
+        if ComicArchive.logo_data is None and self.default_image_path is not None:
             fname = self.default_image_path
             with open(fname, 'rb') as fd:
                 ComicArchive.logo_data = fd.read()
@@ -848,7 +870,7 @@ class ComicArchive:
                     #hack to account for some weird scanner ID pages
                     #basename=os.path.split(k)[1]
                     #if basename < '0':
-                    #	k = os.path.join(os.path.split(k)[0], "z" + basename)
+                    #    k = os.path.join(os.path.split(k)[0], "z" + basename)
                     return k.lower()
 
                 files = natsorted(files, key=keyfunc,signed=False)
@@ -1140,4 +1162,12 @@ class ComicArchive:
 
         zip_archiver = ZipArchiver( zipfilename )
         return zip_archiver.copyFromArchive( self.archiver )
+
+    def extractArchive( self, base_path=None ):
+        try:
+            path = self.archiver.extractArchivePages( self.getPageNameList(), base_path )
+        except Exception as e:
+            raise
+        finally:
+            return path
 

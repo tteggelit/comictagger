@@ -4,16 +4,14 @@ This is a fork derived from google code:
 
 
 Changes in this fork:
- - using different unrar library https://pypi.python.org/pypi/unrar/. The previous one used unrar.dll on windows and hackish wrapping of
-   unrar command on linux, while this new one should use unrarlib on both platforms. From my tests
-   it is more stable and faster. *Requires unrarlib availability, check unrar module documentation for more information*.
- - extracted core libraries in its own package comicapi, shared in a new repository using git subtree for better alignment with comicstreamer
- - support for *day of month* field in the GUI
- - merge of changes from fcanc fork
+
+* extended ComicVineTalker and ComicVineCacher to pull and cache publisher information
+* extended ComicArchive to extract a valid ZipArchive to some location
+* added `description` and `site_detail_url` to fields pulled for issues from Comic Vine
 
 Todo:
- - more tests in non-linux platforms
- - repackage for simple user installation
+
+* extract RarArchive
 
 Follows original readme:
 
