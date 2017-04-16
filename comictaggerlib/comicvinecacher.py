@@ -84,6 +84,7 @@ class ComicVineCacher:
                 "name TEXT," +
                 "start_year INT," +
                 "publisher TEXT," +
+                "publisher_id INT," +
                 "count_of_issues INT," +
                 "image_url TEXT," +
                 "description TEXT," +
@@ -94,6 +95,7 @@ class ComicVineCacher:
                 "id INT," +
                 "name TEXT," +
                 "publisher TEXT," +
+                "publisher_id INT," +
                 "count_of_issues INT," +
                 "start_year INT," +
                 "description TEXT," +
@@ -131,6 +133,7 @@ class ComicVineCacher:
                 "PRIMARY KEY (id))")
 
     def add_search_results(self, search_term, cv_search_results):
+        print "Adding search results to cache"
 
         con = lite.connect(self.db_file)
 
@@ -145,13 +148,17 @@ class ComicVineCacher:
 
             # now add in new results
             for record in cv_search_results:
+                print record
                 timestamp = datetime.datetime.now()
 
                 if record['publisher'] is None:
+                    pub_id = 0
                     pub_name = ""
                 else:
+                    pub_id = record['publisher']['id']
                     pub_name = record['publisher']['name']
 
+                print "Publisher: %s (%d)" % (pub_name, int(pub_id))
                 if record['image'] is None:
                     url = ""
                 else:
@@ -159,16 +166,17 @@ class ComicVineCacher:
 
                 cur.execute(
                     "INSERT INTO VolumeSearchCache " +
-                    "(search_term, id, name, start_year, publisher, count_of_issues, image_url, description) " +
-                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                    "(search_term, id, name, start_year, publisher, publisher_id, count_of_issues, image_url, description) " +
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (search_term.lower(),
                      record['id'],
-                        record['name'],
-                        record['start_year'],
-                        pub_name,
-                        record['count_of_issues'],
-                        url,
-                        record['description']))
+                     record['name'],
+                     record['start_year'],
+                     pub_name,
+                     int(pub_id),
+                     record['count_of_issues'],
+                     url,
+                     record['description']))
 
     def get_search_results(self, search_term):
 
@@ -197,10 +205,11 @@ class ComicVineCacher:
                 result['start_year'] = record[3]
                 result['publisher'] = dict()
                 result['publisher']['name'] = record[4]
-                result['count_of_issues'] = record[5]
+                result['publisher']['id'] = record[5]
+                result['count_of_issues'] = record[6]
                 result['image'] = dict()
-                result['image']['super_url'] = record[6]
-                result['description'] = record[7]
+                result['image']['super_url'] = record[7]
+                result['description'] = record[8]
 
                 results.append(result)
 
@@ -267,13 +276,16 @@ class ComicVineCacher:
             timestamp = datetime.datetime.now()
 
             if cv_volume_record['publisher'] is None:
+                pub_id = None
                 pub_name = ""
             else:
+                pub_id = cv_volume_record['publisher']['id']
                 pub_name = cv_volume_record['publisher']['name']
 
             data = {
                 "name": cv_volume_record['name'],
                 "publisher": pub_name,
+                "publisher_id": pub_id,
                 "count_of_issues": cv_volume_record['count_of_issues'],
                 "start_year": cv_volume_record['start_year'],
                 "description": cv_volume_record['description'],
@@ -325,7 +337,7 @@ class ComicVineCacher:
 
             # fetch
             cur.execute(
-                "SELECT id,name,publisher,count_of_issues,start_year,description,site_detail_url FROM Volumes WHERE id = ?",
+                "SELECT id,name,publisher,publisher_id,count_of_issues,start_year,description,site_detail_url FROM Volumes WHERE id = ?",
                 [volume_id])
 
             row = cur.fetchone()
@@ -340,10 +352,11 @@ class ComicVineCacher:
             result['name'] = row[1]
             result['publisher'] = dict()
             result['publisher']['name'] = row[2]
-            result['count_of_issues'] = row[3]
-            result['start_year'] = row[4]
-            result['description'] = row[5]
-            result['site_detail_url'] = row[6]
+            result['publisher']['id'] = row[3]
+            result['count_of_issues'] = row[4]
+            result['start_year'] = row[5]
+            result['description'] = row[6]
+            result['site_detail_url'] = row[7]
             result['issues'] = list()
 
         return result

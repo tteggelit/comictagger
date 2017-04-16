@@ -290,14 +290,14 @@ class ComicVineTalker(QObject):
 
         return search_results
 
-    def searchForPublisher(self, publisher_name, callback=None, refresh_cache=False):
+    def searchForPublisher(self, publisher_id, callback=None, refresh_cache=False):
 
         # before we search online, look in our cache, since we might have
         # done this same search recently
 
         cvc = ComicVineCacher()
         if not refresh_cache:
-            cached_search_results = cvc.get_publisher_info(publisher_name)
+            cached_search_results = cvc.get_publisher_info(publisher_id)
 
         if len(cached_search_results) > 0:
             query_string = urllib.quote_plus(publisher_name.encode("utf-8"))
@@ -354,8 +354,8 @@ class ComicVineTalker(QObject):
         cvc = ComicVineCacher()
         cached_volume_result = cvc.get_volume_info(series_id)
 
-        if cached_volume_result is not None:
-            return cached_volume_result
+        #if cached_volume_result is not None:
+        #    return cached_volume_result
 
         volume_url = self.api_base_url + "/volume/" + CVTypeID.Volume + "-" + \
             str(series_id) + "/?api_key=" + self.api_key + \
@@ -366,6 +366,13 @@ class ComicVineTalker(QObject):
         volume_results = cv_response['results']
 
         cvc.add_volume_info(volume_results)
+
+        if volume_results['publisher']['id']:
+            cached_publisher_result = cvc.get_publisher_info( CVTypeID.Publisher + \
+                                                              str(volume_results['publisher']['id']) )
+            #if cached_publisher_result is None:
+
+
 
         return volume_results
 
