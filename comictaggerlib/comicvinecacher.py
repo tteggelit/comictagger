@@ -133,7 +133,6 @@ class ComicVineCacher:
                 "PRIMARY KEY (id))")
 
     def add_search_results(self, search_term, cv_search_results):
-        print "Adding search results to cache"
 
         con = lite.connect(self.db_file)
 
@@ -148,7 +147,6 @@ class ComicVineCacher:
 
             # now add in new results
             for record in cv_search_results:
-                print record
                 timestamp = datetime.datetime.now()
 
                 if record['publisher'] is None:
@@ -158,7 +156,6 @@ class ComicVineCacher:
                     pub_id = record['publisher']['id']
                     pub_name = record['publisher']['name']
 
-                print "Publisher: %s (%d)" % (pub_name, int(pub_id))
                 if record['image'] is None:
                     url = ""
                 else:
@@ -458,21 +455,19 @@ class ComicVineCacher:
 
     def add_publisher_info(self, cv_publisher_record):
 
+
         con = lite.connect(self.db_file)
-
         with con:
-
             cur = con.cursor()
-
+            con.text_factory = unicode
             timestamp = datetime.datetime.now()
 
             data = {
                 "name": cv_publisher_record['name'],
-                "description": cv_publisher_record['description'],
                 "site_detail_url": cv_publisher_record['site_detail_url'],
                 "timestamp": timestamp
             }
-            #self.upsert(cur, "publishers", "id", cv_publisher_record['id'], data)
+            self.upsert(cur, "publishers", "id", int(cv_publisher_record['id']), data)
 
     def get_publisher_info(self, publisher_id):
 
@@ -491,7 +486,7 @@ class ComicVineCacher:
             # fetch
             cur.execute(
                 "SELECT id,name,site_detail_url FROM Publishers WHERE id = ?",
-                [publisher_id])
+                [int(publisher_id)])
 
             row = cur.fetchone()
 
